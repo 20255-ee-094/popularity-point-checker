@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <title>XOXO POPULARITY CHECKER</title>
+    <!-- Bootstrap CSS for styling -->
+    <link
+            rel="stylesheet"
+            href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    >
+    <style>
+        /* Basic styling */
+        body {
+            background: linear-gradient(to right, #ffffff, #f0f0f0);
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+            margin: 2rem;
+        }
+
+        .heading {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .card-custom {
+            border-radius: 1rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            margin-bottom: 1rem;
+            background: #fff;
+            padding: 1rem;
+        }
+
+        .highlight {
+            background-color: #e2f0d9;
+        }
+
+        .no-results {
+            color: #777;
+            text-align: center;
+            padding: 1rem;
+        }
+
+        .fst-italic {
+            font-style: italic;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="heading">
+        <h1 class="display-6">XOXO Popularity Points Checker</h1>
+        <p class="text-muted">Enter details below to find possible scenarios</p>
+    </div>
+
+    <!-- Form Section -->
+    <div class="card-custom mb-4">
+        <form id="popularity-form" class="p-3">
+            <div class="mb-3">
+                <label for="winnerName" class="form-label">Enter Winner's Name:</label>
+                <input type="text" name="winnerName" id="winnerName" class="form-control" required>
+            </div>
+
+            <div class="mb-3">
+                <label for="loserName" class="form-label">Enter Loser's Name:</label>
+                <input type="text" name="loserName" id="loserName" class="form-control" required>
+            </div>
+
+            <div class="mb-3">
+                <label for="desiredPoints" class="form-label">
+                    Enter the final winner points you want to secure:
+                </label>
+                <input type="number" name="desiredPoints" id="desiredPoints" class="form-control" required>
+            </div>
+
+            <button type="submit" class="btn btn-success w-100">Submit</button>
+        </form>
+    </div>
+
+    <!-- Results Section -->
+    <div id="resultsContainer"></div>
+</div>
+
+<script>
+    // The thresholds array: [ [start_pop, end_pop, base_points], ... ]
+    const thresholds = [
+        [0, 1999, 6],
+        [2000, 3999, 10],
+        [4000, 9999, 14],
+        [10000, 14999, 16],
+        [15000, 49999, 20],
+        [50000, 119999, 24],
+        [120000, 259999, 28],
+        [260000, 559999, 32],
+        [560000, 849999, 36],
+        [850000, 1049999, 38],
+        [1050000, 1999999, 40],
+        [2000000, 3700000, 42]
+    ];
+
+    document.getElementById('popularity-form').addEventListener('submit', function (event) {
+        event.preventDefault(); // Prevent page reload
+
+        const winnerName = document.getElementById('winnerName').value.trim();
+        const loserName = document.getElementById('loserName').value.trim();
+        const desiredPoints = parseInt(document.getElementById('desiredPoints').value, 10);
+
+        // We'll find all solutions
+        let solutions = [];
+
+        for (let i = 0; i < thresholds.length; i++) {
+            const [wStart, wEnd, wPoints] = thresholds[i];
+
+            for (let j = 0; j < thresholds.length; j++) {
+                const [lStart, lEnd, lPoints] = thresholds[j];
+
+                // Condition: winner has strictly higher or equal base points
+                if (wPoints > lPoints || wPoints === lPoints) {
+                    const finalWinner = wPoints + Math.floor(lPoints / 2);
+                    const finalLoser = lPoints - Math.floor(lPoints / 2);
+
+                    // Must match desired final points, and winner must remain above loser
+                    if (finalWinner === desiredPoints && finalWinner > finalLoser) {
+                        let sameThresholdNote = "";
+                        if (wPoints === lPoints) {
+                            sameThresholdNote = "(Same base points scenario — winner assumed higher popularity within threshold.)";
+                        }
+
+                        solutions.push({
+                            wStart,
+                            wEnd,
+                            wPoints,
+                            lStart,
+                            lEnd,
+                            lPoints,
+                            finalWinner,
+                            finalLoser,
+                            sameThresholdNote
+                        });
+                    }
+                }
+            }
+        }
+
+        displayResults(winnerName, loserName, desiredPoints, solutions);
+    });
+
+    function displayResults(winnerName, loserName, desiredPoints, solutions) {
+        const container = document.getElementById('resultsContainer');
+        container.innerHTML = ''; // Clear previous results
+
+        // If no solutions, show a message
+        if (!solutions.length) {
+            container.innerHTML = `
+      <div class="card-custom no-results">
+        <p>No possible combinations found under these conditions.</p>
+      </div>
+    `;
+            return;
+        }
+
+        // Header
+        const heading = document.createElement('div');
+        heading.classList.add('mb-4');
+        heading.innerHTML = `
+    <h2>Results for ${winnerName} vs. ${loserName}</h2>
+    <p>Desired final winner points: <strong>${desiredPoints}</strong></p>
+  `;
+        container.appendChild(heading);
+
+        // Display each scenario
+        solutions.forEach((scenario, index) => {
+            const scenarioDiv = document.createElement('div');
+            scenarioDiv.classList.add('card-custom', 'highlight');
+            scenarioDiv.innerHTML = `
+      <div class="p-3">
+        <p>
+          <strong>Winner (${winnerName}):</strong><br>
+          popularity in [${scenario.wStart}..${scenario.wEnd}]
+          => base ${scenario.wPoints} points
+        </p>
+        <p>
+          <strong>Loser (${loserName}):</strong><br>
+          popularity in [${scenario.lStart}..${scenario.lEnd}]
+          => base ${scenario.lPoints} points
+        </p>
+        <p>
+          Final outcome:<br>
+          <strong>Winner=${scenario.finalWinner}</strong>,
+          <strong>Loser=${scenario.finalLoser}</strong>
+        </p>
+        ${scenario.sameThresholdNote
+                ? `<p class="fst-italic">${scenario.sameThresholdNote}</p>`
+                : ''
+            }
+      </div>
+    `;
+            container.appendChild(scenarioDiv);
+        });
+    }
+</script>
+
+</body>
+</html>
